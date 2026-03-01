@@ -1,4 +1,10 @@
+'use client';
+
+import { useState } from 'react';
+
 export default function Home() {
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string>('');
   return (
     <main className="min-h-screen">
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
@@ -136,22 +142,61 @@ export default function Home() {
             </div>
             <div className="bg-white/10 rounded-xl p-8">
               <h3 className="text-xl font-semibold mb-4">Send us a message</h3>
-              <form className="space-y-4" action="mailto:info@windsongs.ca" method="post" encType="text/plain">
+              <form className="space-y-4" onSubmit={async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const data = {
+                  name: formData.get('name'),
+                  email: formData.get('email'),
+                  message: formData.get('message'),
+                  honeypot: formData.get('website'),
+                };
+                setErrorMessage('');
+                setStatus('loading');
+                try {
+                  const res = await fetch('/api/contact', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                  });
+                  const result = await res.json();
+                  if (res.ok) {
+                    setStatus('success');
+                  } else {
+                    setStatus('error');
+                    setErrorMessage(result.error || 'Something went wrong.');
+                  }
+                } catch (e) {
+                  setStatus('error');
+                  setErrorMessage(e instanceof Error ? e.message : 'Something went wrong.');
+                }
+              }}>
+                <input type="text" name="website" className="hidden" tabIndex={-1} autoComplete="off" style={{ display: 'none' }} />
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium text-slate-300 mb-1">Name</label>
-                  <input type="text" id="name" name="name" className="w-full px-4 py-2 rounded-lg bg-white/20 border border-white/10 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary" />
+                  <input type="text" id="name" name="name" required className="w-full px-4 py-2 rounded-lg bg-white/20 border border-white/10 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-1">Email</label>
-                  <input type="email" id="email" name="email" className="w-full px-4 py-2 rounded-lg bg-white/20 border border-white/10 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary" />
+                  <input type="email" id="email" name="email" required className="w-full px-4 py-2 rounded-lg bg-white/20 border border-white/10 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
                 <div>
                   <label htmlFor="message" className="block text-sm font-medium text-slate-300 mb-1">Message</label>
-                  <textarea id="message" name="message" rows={4} className="w-full px-4 py-2 rounded-lg bg-white/20 border border-white/10 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
+                  <textarea id="message" name="message" required rows={4} className="w-full px-4 py-2 rounded-lg bg-white/20 border border-white/10 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
                 </div>
-                <button type="submit" className="w-full px-6 py-3 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors">
-                  Send Message
-                </button>
+                {status === 'success' ? (
+                  <div className="p-4 bg-green-500/20 text-green-300 rounded-lg text-center">
+                    Thank you! Your message has been sent.
+                  </div>
+                ) : status === 'error' ? (
+                  <div className="p-4 bg-red-500/20 text-red-300 rounded-lg text-center">
+                    {errorMessage || 'Something went wrong. Please try again or email us directly.'}
+                  </div>
+                ) : (
+                  <button type="submit" disabled={status === 'loading'} className="w-full px-6 py-3 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    {status === 'loading' ? 'Sending...' : 'Send Message'}
+                  </button>
+                )}
               </form>
             </div>
           </div>
